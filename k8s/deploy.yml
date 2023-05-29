@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testandogo2-ingress
+  labels:
+    app: testandogo2
+    backstage.io/kubernetes-id: testandogo2 
+spec:
+  rules:
+    - host: api-testandogo2-testandogo-dev.empcbr.thoughtworks-labs.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: testandogo2
+                port: 
+                  number: 80
+  tls:
+  - hosts:
+    - api-testandogo2-testandogo-dev.empcbr.thoughtworks-labs.net
+    secretName: letencryptkey
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: testandogo2
+  labels:
+    app: testandogo2
+    backstage.io/kubernetes-id: testandogo2
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: testandogo2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testandogo2
+  labels:
+    app: testandogo2
+    backstage.io/kubernetes-id: testandogo2
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 5
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: testandogo2
+  template:
+    metadata:
+      labels:
+        app: testandogo2
+    spec:
+      containers:
+      - name: testandogo2
+        image: 626109959667.dkr.ecr.us-east-1.amazonaws.com/testandogo2:{image-tag}
+        ports:
+        - containerPort: 8080

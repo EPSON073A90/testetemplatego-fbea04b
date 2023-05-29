@@ -1,0 +1,22 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "testandogo2"
+  description: "testandotemplate"
+  links:
+    - url: https://api-testandogo2-testandogo-dev.empcbr.thoughtworks-labs.net/api
+      title: testandogo2
+      icon: dashboard
+  annotations:
+    circleci.com/project-slug: github/platform-dx/testetemplatego-fbea04b
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug:  platform-dx/testetemplatego-fbea04b
+    sonarqube.org/project-key: "testandogo2"
+    backstage.io/kubernetes-label-selector: "app=testandogo2"
+    backstage.io/adr-location: docs/adrs/
+spec:
+  type: service
+  lifecycle: experimental
+  owner: "mb,la"
+  providesApis:
+    - "testandogo2"

@@ -1,0 +1,95 @@
+version: 2.1
+
+parameters:
+  prospect:
+    type: string
+    default: "testandogo-dev"
+  project:
+    type: string
+    default: "testetemplatego"
+  api:
+    type: string
+    default: "testandogo2"
+  region:
+    type: string
+    default: "us-east-1"
+  instance_id:
+    type: string
+    default: "i-0d34ae20fec5a6494"
+
+orbs:
+  aws-cli: circleci/aws-cli@3.0.0
+
+jobs:
+  # tests:
+  #   working_directory: # ??
+  #   docker:
+  #     - image: cimg/golang:1.20 # ou
+  #   steps:
+  #     - checkout
+  #     - run:
+  #         name: go test
+  #         command: go test
+
+  create-docker-image:
+    docker:
+      - image: circleci/python:3.9
+    steps:
+      - checkout
+      - run:
+          command: |
+            pip3.9 install awscli
+      - setup_remote_docker:
+          version: 20.10.11
+          docker_layer_caching: true
+      - run:
+          command: |
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 626109959667.dkr.ecr.us-east-1.amazonaws.com
+            SHORT_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
+            docker image build . --tag << pipeline.parameters.api >>:${SHORT_SHA1}
+            docker tag << pipeline.parameters.api >>:${SHORT_SHA1} 626109959667.dkr.ecr.us-east-1.amazonaws.com/<< pipeline.parameters.api >>:${SHORT_SHA1}
+            docker tag << pipeline.parameters.api >>:${SHORT_SHA1} 626109959667.dkr.ecr.us-east-1.amazonaws.com/<< pipeline.parameters.api >>:latest
+            docker push 626109959667.dkr.ecr.us-east-1.amazonaws.com/<< pipeline.parameters.api >>:${SHORT_SHA1}
+            docker push 626109959667.dkr.ecr.us-east-1.amazonaws.com/<< pipeline.parameters.api >>:latest
+
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - aws-cli/setup
+      - run:
+          command: |
+            SHORT_SHA1=$(echo $CIRCLE_SHA1 | cut -c -7)
+            sed 's|{image-tag}|'$SHORT_SHA1'|g' k8s/deploy.yml > deploy.yml
+            FILE_VALUE=$(cat deploy.yml | base64 -w 0)
+            echo "{ \"Parameters\": { \"commands\": [ \"#!/bin/bash\", \"echo $FILE_VALUE | base64 -d > /tmp/file.yml\", \"runuser ubuntu -c 'kubectl apply -f /tmp/file.yml'\"]}}" > parameters.json
+            aws ssm send-command --document-name "AWS-RunShellScript" --instance-ids "<< pipeline.parameters.instance_id >>" --region "<< pipeline.parameters.region>>" --cli-input-json file://parameters.json
+
+workflows:
+  deploy:
+    jobs:
+      # - tests
+      # - quality:
+      #     context:
+      #       - Demo-DX
+      #     requires:
+      #       - tests
+      - create-docker-image:
+          filters:
+            branches:
+              only:
+                - main
+          context:
+            - Demo-DX
+          # requires:
+            # - tests
+      - deploy:
+          filters:
+            branches:
+              only:
+                - main
+          context:
+            - Demo-DX
+          requires:
+            - create-docker-image

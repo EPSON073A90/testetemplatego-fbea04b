@@ -1,0 +1,3 @@
+docs/
+.circleci/
+k8s/
